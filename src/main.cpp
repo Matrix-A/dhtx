@@ -49,19 +49,43 @@ constexpr std::size_t max_torrent_count{ 10ull };
 constexpr std::time_t max_torrent_time{ 60 };
 
 template<>
-struct std::formatter<lt::sha1_hash, char> : std::formatter<std::uint8_t, char> {
-    template<typename FormatContext>
-    constexpr auto format(const lt::sha1_hash& hash, FormatContext& fc) const {
+struct std::formatter<lt::sha1_hash, char> {
+private:
+    bool uppercase = false;
+public:
+    constexpr auto parse(auto& context) {
+        auto iter = std::begin(context);
+        auto end = std::begin(context);
+        if (iter == end) {
+            return iter;
+        }
+        if (*iter == '}') {
+            uppercase = false;
+        }
+        else if (*iter == 'x' || *iter == 'X') {
+            uppercase = (*iter == 'X');
+            if (*(++iter) != '}')
+                throw std::format_error("libtorrent::sha1_hash format string.");
+        }
+        else {
+            throw std::format_error("libtorrent::sha1_hash format string.");
+        }
+        return iter;
+    }
+    constexpr auto format(const lt::sha1_hash& hash, auto& fc) const {
         constexpr std::ptrdiff_t size = lt::sha1_hash::size();
         const char* data = hash.data();
         std::ptrdiff_t index;
-        for (index = 0; index < size - 1; ++index) {
-            std::formatter<std::uint8_t, char>::format(data[index], fc);
+        for (index = 0; index < size; ++index) {
+            if (uppercase) {
+                std::format_to(fc.out(), "{:02X}", static_cast<std::uint8_t>(data[index]));
+            }
+            else {
+                std::format_to(fc.out(), "{:02x}", static_cast<std::uint8_t>(data[index]));
+            }
         }
-        return std::formatter<std::uint8_t, char>::format(data[index], fc);
+        return fc.out();
     }
-private:
-    bool flag; // todo 标记大小写，且只能大小写（xX), 添加 parse 函数，
 };
 
 namespace utils {
@@ -130,7 +154,7 @@ void alerts(std::binary_semaphore& signal) {
             if (lt::alert_cast<lt::dht_get_peers_alert>(alert)) {
                 // dht 收到 peers 请求的 alert
                 auto& gpa = *lt::alert_cast<lt::dht_get_peers_alert>(alert);
-                std::string hash = std::format("{:02X}", gpa.info_hash);
+                std::string hash = std::format("{}", gpa.info_hash);
                 if (hashs.find(hash) == hashs.end() && handles.size() < max_torrent_count) {
                     hashs.insert(hash);
                     lt::add_torrent_params torrent_params;
@@ -146,7 +170,7 @@ void alerts(std::binary_semaphore& signal) {
                 for (const lt::torrent_status& status : sua.status) {
                     if (status.errc) {
                         if (handles.erase(status.handle)) {
-                            utils::print("错误-移除磁力: magnet:?xt=urn:btih:{:02X}\n", status.info_hashes.get_best());
+                            utils::print("错误-移除磁力: magnet:?xt=urn:btih:{}\n", status.info_hashes.get_best());
                             session.remove_torrent(status.handle);
                         }
                     }
@@ -161,10 +185,10 @@ void alerts(std::binary_semaphore& signal) {
                             utils::print("总大小：{} B\n", info->total_size());
                             utils::print("文件个数：{}\n", info->num_files());
                             if (hashes.has_v1()) {
-                                utils::print("磁力[V1]：magnet:?xt=urn:btih:{:02X}\n", hashes.get(lt::protocol_version::V1));
+                                utils::print("磁力[V1]：magnet:?xt=urn:btih:{}\n", hashes.get(lt::protocol_version::V1));
                             }
                             if (hashes.has_v2()) {
-                                utils::print("磁力[V2]：magnet:?xt=urn:btih:{:02X}\n", hashes.get(lt::protocol_version::V2));
+                                utils::print("磁力[V2]：magnet:?xt=urn:btih:{}\n", hashes.get(lt::protocol_version::V2));
                             }
                             utils::print("------------------------------------------------------------------------------------\n");
                             handles.erase(status.handle);
@@ -174,7 +198,7 @@ void alerts(std::binary_semaphore& signal) {
                     else if (status.state == lt::torrent_status::downloading_metadata
                         && now - status.added_time > max_torrent_time) {
                         if (handles.erase(status.handle)) {
-                            utils::print("超时-移除磁力: magnet:?xt=urn:btih:{:02X}\n", status.info_hashes.get_best());
+                            utils::print("超时-移除磁力: magnet:?xt=urn:btih:{}\n", status.info_hashes.get_best());
                             session.remove_torrent(status.handle);
                         }
                     }
