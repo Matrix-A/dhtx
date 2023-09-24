@@ -14,6 +14,7 @@
 #include <vector>
 #include <thread>
 #include <random>
+#include <print>
 #include <semaphore>
 
 #include "libtorrent/hasher.hpp"
@@ -95,12 +96,6 @@ namespace utils {
         std::locale::global(std::locale("zh_CN.UTF-8")); // C++
     }
 
-    template<typename... ARGS>
-    constexpr inline void print(std::format_string<ARGS...> fmt, ARGS&&... args) {
-        std::cout << std::format(fmt, std::forward<ARGS>(args)...);
-        // todo save log file
-    }
-
     std::uintmax_t clean_dir(const std::filesystem::path& dir) {
         return std::filesystem::remove_all(dir);
     }
@@ -170,7 +165,7 @@ void alerts(std::binary_semaphore& signal) {
                 for (const lt::torrent_status& status : sua.status) {
                     if (status.errc) {
                         if (handles.erase(status.handle)) {
-                            utils::print("错误-移除磁力: magnet:?xt=urn:btih:{}\n", status.info_hashes.get_best());
+                            std::println("错误-移除磁力: magnet:?xt=urn:btih:{}", status.info_hashes.get_best());
                             session.remove_torrent(status.handle);
                         }
                     }
@@ -180,17 +175,17 @@ void alerts(std::binary_semaphore& signal) {
                         if (handles.find(status.handle) != handles.end()) {
                             std::shared_ptr<const lt::torrent_info> info = status.torrent_file.lock();
                             const lt::info_hash_t& hashes = info->info_hashes();
-                            utils::print("------------------------------------------------------------------------------------\n");
-                            utils::print("名称：{}\n", info->name());
-                            utils::print("总大小：{} B\n", info->total_size());
-                            utils::print("文件个数：{}\n", info->num_files());
+                            std::println("------------------------------------------------------------------------------------");
+                            std::println("名称：{}\n", info->name());
+                            std::println("总大小：{} B\n", info->total_size());
+                            std::println("文件个数：{}\n", info->num_files());
                             if (hashes.has_v1()) {
-                                utils::print("磁力[V1]：magnet:?xt=urn:btih:{}\n", hashes.get(lt::protocol_version::V1));
+                                std::println("磁力[V1]：magnet:?xt=urn:btih:{}", hashes.get(lt::protocol_version::V1));
                             }
                             if (hashes.has_v2()) {
-                                utils::print("磁力[V2]：magnet:?xt=urn:btih:{}\n", hashes.get(lt::protocol_version::V2));
+                                std::println("磁力[V2]：magnet:?xt=urn:btih:{}", hashes.get(lt::protocol_version::V2));
                             }
-                            utils::print("------------------------------------------------------------------------------------\n");
+                            std::println("------------------------------------------------------------------------------------");
                             handles.erase(status.handle);
                             session.remove_torrent(status.handle);
                         }
@@ -198,14 +193,14 @@ void alerts(std::binary_semaphore& signal) {
                     else if (status.state == lt::torrent_status::downloading_metadata
                         && now - status.added_time > max_torrent_time) {
                         if (handles.erase(status.handle)) {
-                            utils::print("超时-移除磁力: magnet:?xt=urn:btih:{}\n", status.info_hashes.get_best());
+                            std::println("超时-移除磁力: magnet:?xt=urn:btih:{}", status.info_hashes.get_best());
                             session.remove_torrent(status.handle);
                         }
                     }
                 }
             }
             else {
-                //utils::print(true, "msg：{}\n", alert->message());
+                //std::println("msg：{}", alert->message());
             }
         }
         std::this_thread::sleep_for(std::chrono::seconds(1));
