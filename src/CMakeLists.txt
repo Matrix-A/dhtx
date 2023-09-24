@@ -1,4 +1,3 @@
-project(${DHTX_PROJECT_NAME})
 set(CMAKE_CXX_STANDARD 23)
 
 set(DHTX_SOURCES "main.cpp")
