@@ -176,9 +176,9 @@ void alerts(std::binary_semaphore& signal) {
                             std::shared_ptr<const lt::torrent_info> info = status.torrent_file.lock();
                             const lt::info_hash_t& hashes = info->info_hashes();
                             std::println("------------------------------------------------------------------------------------");
-                            std::println("名称：{}\n", info->name());
-                            std::println("总大小：{} B\n", info->total_size());
-                            std::println("文件个数：{}\n", info->num_files());
+                            std::println("名称：{}", info->name());
+                            std::println("总大小：{} B", info->total_size());
+                            std::println("文件个数：{}", info->num_files());
                             if (hashes.has_v1()) {
                                 std::println("磁力[V1]：magnet:?xt=urn:btih:{}", hashes.get(lt::protocol_version::V1));
                             }
